@@ -1,5 +1,4 @@
-#!/usr/bin/env python3
-# -*- coding: utf-8 -*-
+
 
 import sys, time, math, os, signal, statistics as stats
 from datetime import datetime
@@ -308,90 +307,90 @@ class Diagnoser:
 # RELATÓRIO
 # =========================
 REPORT_TMPL = """
-<!doctype html>
-<html lang="pt-br">
-<head>
-<meta charset="utf-8">
-<title>Relatório de Diagnóstico – {{ ts }}</title>
-<style>
-body{font-family:system-ui,-apple-system,Segoe UI,Roboto,Ubuntu,Arial,sans-serif;margin:32px;color:#111}
-h1{margin:0 0 8px} h2{margin-top:28px}
-.code{background:#f5f5f7;border:1px solid #eee;padding:8px;border-radius:6px;font-family:ui-monospace,Consolas,monospace;font-size:13px;white-space:pre-wrap}
-.bad{color:#b00020} .warn{color:#a15c00} .ok{color:#0b7}
-.card{border:1px solid #e5e7eb;border-radius:10px;padding:12px;margin:10px 0;background:#fff}
-small{color:#555}
-ul{margin:6px 0 6px 20px}
-</style>
-</head>
-<body>
-<h1>Relatório de Diagnóstico</h1>
-<small>Gerado em {{ ts }} | Janela analisada: {{ window }} s | Endpoint: {{ endpoint }}</small>
+    <!doctype html>
+    <html lang="pt-br">
+    <head>
+    <meta charset="utf-8">
+    <title>Relatório de Diagnóstico – {{ ts }}</title>
+    <style>
+    body{font-family:system-ui,-apple-system,Segoe UI,Roboto,Ubuntu,Arial,sans-serif;margin:32px;color:#111}
+    h1{margin:0 0 8px} h2{margin-top:28px}
+    .code{background:#f5f5f7;border:1px solid #eee;padding:8px;border-radius:6px;font-family:ui-monospace,Consolas,monospace;font-size:13px;white-space:pre-wrap}
+    .bad{color:#b00020} .warn{color:#a15c00} .ok{color:#0b7}
+    .card{border:1px solid #e5e7eb;border-radius:10px;padding:12px;margin:10px 0;background:#fff}
+    small{color:#555}
+    ul{margin:6px 0 6px 20px}
+    </style>
+    </head>
+    <body>
+    <h1>Relatório de Diagnóstico</h1>
+    <small>Gerado em {{ ts }} | Janela analisada: {{ window }} s | Endpoint: {{ endpoint }}</small>
 
-<h2>Sumário</h2>
-<div class="card">
-  <ul>
-    {% if diag.causes %}
-      {% for t,exp in diag.causes %}
-      <li><b>{{ t }}</b> — {{ exp }}</li>
-      {% endfor %}
+    <h2>Sumário</h2>
+    <div class="card">
+    <ul>
+        {% if diag.causes %}
+        {% for t,exp in diag.causes %}
+        <li><b>{{ t }}</b> — {{ exp }}</li>
+        {% endfor %}
+        {% else %}
+        <li class="ok">Nenhuma causa provável crítica detectada com os dados coletados.</li>
+        {% endif %}
+    </ul>
+    </div>
+
+    <h2>Diagnósticos & Evidências</h2>
+    {% if diag.findings %}
+    {% for title,exp,ev in diag.findings %}
+    <div class="card">
+        <b>{{ title }}</b><br>
+        <small>{{ exp }}</small>
+        <div class="code">{{ ev }}</div>
+    </div>
+    {% endfor %}
     {% else %}
-      <li class="ok">Nenhuma causa provável crítica detectada com os dados coletados.</li>
+    <div class="card ok">Sem achados relevantes na janela de análise.</div>
     {% endif %}
-  </ul>
-</div>
 
-<h2>Diagnósticos & Evidências</h2>
-{% if diag.findings %}
-  {% for title,exp,ev in diag.findings %}
-  <div class="card">
-    <b>{{ title }}</b><br>
-    <small>{{ exp }}</small>
-    <div class="code">{{ ev }}</div>
-  </div>
-  {% endfor %}
-{% else %}
-  <div class="card ok">Sem achados relevantes na janela de análise.</div>
-{% endif %}
+    <h2>Métricas (últimos {{ window }} s)</h2>
+    <div class="card">
+    <pre class="code">
+    ATT (roll/pitch deg): mean=({{ m.att_roll_mean|default("na") }}, {{ m.att_pitch_mean|default("na") }})
+    ATT stdev:            ({{ m.att_roll_std|default("na") }}, {{ m.att_pitch_std|default("na") }})
+    RC roll/pitch median: ({{ m.rc_roll_med|default("na") }}, {{ m.rc_pitch_med|default("na") }})  target≈1500
+    GPS HDOP mean:        {{ m.gps_hdop_mean|default("na") }}
+    VIBE max last:        {{ m.vibe_max_last|default("na") }}
+    PWM avg mean:         {{ m.pwm_avg_mean|default("na") }}
+    </pre>
+    </div>
 
-<h2>Métricas (últimos {{ window }} s)</h2>
-<div class="card">
-<pre class="code">
-ATT (roll/pitch deg): mean=({{ m.att_roll_mean|default("na") }}, {{ m.att_pitch_mean|default("na") }})
-ATT stdev:            ({{ m.att_roll_std|default("na") }}, {{ m.att_pitch_std|default("na") }})
-RC roll/pitch median: ({{ m.rc_roll_med|default("na") }}, {{ m.rc_pitch_med|default("na") }})  target≈1500
-GPS HDOP mean:        {{ m.gps_hdop_mean|default("na") }}
-VIBE max last:        {{ m.vibe_max_last|default("na") }}
-PWM avg mean:         {{ m.pwm_avg_mean|default("na") }}
-</pre>
-</div>
+    <h2>Thresholds usados</h2>
+    <div class="card">
+    <pre class="code">
+    RC tolerância neutro: ±{{ RC_TOL }} µs (alvo 1500)
+    Setpoint neutro:      &lt; {{ ATT_NEUTRAL_RAD }} rad (~{{ (ATT_NEUTRAL_RAD*57.2958)|round(1) }}°)
+    Drift atitude:        &gt; {{ ATT_DRIFT_RAD }} rad (~{{ (ATT_DRIFT_RAD*57.2958)|round(1) }}°)
+    GPS HDOP ruim:        &gt; {{ HDOP_BAD }}
+    Baro vs GPS alt:      &gt; {{ BARO_GPS_ALT_D }} m (quando disponível)
+    Vibração alerta:      &gt; {{ VIBE_ALERT }} m/s²
+    Saturação PWM:        &lt;={{ PWM_SAT_MIN }} ou &gt;={{ PWM_SAT_MAX }} por &gt; {{ PWM_SAT_HOLD_MS }} ms
+    </pre>
+    </div>
 
-<h2>Thresholds usados</h2>
-<div class="card">
-<pre class="code">
-RC tolerância neutro: ±{{ RC_TOL }} µs (alvo 1500)
-Setpoint neutro:      &lt; {{ ATT_NEUTRAL_RAD }} rad (~{{ (ATT_NEUTRAL_RAD*57.2958)|round(1) }}°)
-Drift atitude:        &gt; {{ ATT_DRIFT_RAD }} rad (~{{ (ATT_DRIFT_RAD*57.2958)|round(1) }}°)
-GPS HDOP ruim:        &gt; {{ HDOP_BAD }}
-Baro vs GPS alt:      &gt; {{ BARO_GPS_ALT_D }} m (quando disponível)
-Vibração alerta:      &gt; {{ VIBE_ALERT }} m/s²
-Saturação PWM:        &lt;={{ PWM_SAT_MIN }} ou &gt;={{ PWM_SAT_MAX }} por &gt; {{ PWM_SAT_HOLD_MS }} ms
-</pre>
-</div>
+    <h2>Recomendações</h2>
+    <div class="card">
+    <ul>
+        <li>Confirme <b>calibração do rádio</b> (centros 1500 µs) e aplique <i>deadband</i> 3–5 µs.</li>
+        <li>Refaça <b>Acc/Gyro Cal</b> e <b>Set Level</b>; faça <b>Compass Cal</b> longe de metais.</li>
+        <li>Verifique <b>CG</b> (bateria/carga centralizadas). Se hover inclina com motor saturando, reposicione carga.</li>
+        <li>Balanceie <b>hélices</b>, verifique <b>montagem antivibração</b> e ajuste <b>filtros</b> (LPF/notch).</li>
+        <li>Em GPS: garanta <b>céu aberto</b>, antena longe de ESCs, e cabos limpos de EMI.</li>
+        <li>Se persistir: reduza <b>I-term</b> ou limite <b>IMAX</b> em pitch/roll; depois refine P/D ou use autotune guiado.</li>
+    </ul>
+    </div>
 
-<h2>Recomendações</h2>
-<div class="card">
-  <ul>
-    <li>Confirme <b>calibração do rádio</b> (centros 1500 µs) e aplique <i>deadband</i> 3–5 µs.</li>
-    <li>Refaça <b>Acc/Gyro Cal</b> e <b>Set Level</b>; faça <b>Compass Cal</b> longe de metais.</li>
-    <li>Verifique <b>CG</b> (bateria/carga centralizadas). Se hover inclina com motor saturando, reposicione carga.</li>
-    <li>Balanceie <b>hélices</b>, verifique <b>montagem antivibração</b> e ajuste <b>filtros</b> (LPF/notch).</li>
-    <li>Em GPS: garanta <b>céu aberto</b>, antena longe de ESCs, e cabos limpos de EMI.</li>
-    <li>Se persistir: reduza <b>I-term</b> ou limite <b>IMAX</b> em pitch/roll; depois refine P/D ou use autotune guiado.</li>
-  </ul>
-</div>
-
-</body>
-</html>
+    </body>
+    </html>
 """
 
 def render_report(endpoint, window_s, diag, metrics):
