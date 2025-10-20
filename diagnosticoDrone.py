@@ -1,7 +1,7 @@
 
 
 import sys, time, math, os, signal, statistics as stats
-from datetime import datetime
+from datetime import time
 from collections import deque, defaultdict
 
 from pymavlink import mavutil
